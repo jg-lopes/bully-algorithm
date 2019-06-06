@@ -3,7 +3,21 @@ import time
 import sys, select
 
 def verifyLeader():
+    # Returns if the leader is alive
     print ('Consegui Rodar essa funcao')
+    return None
+
+def emulateFailure():
+    # Emulates a failure in the process
+    return None
+
+def recoverProcess():
+    # Makes the process recover from the failure
+    return None
+
+def generateMetrics():
+    # Prints to the console some useful information
+    return None
 
 def get_data():
     if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
@@ -16,7 +30,6 @@ async def userInterface(message):
         await asyncio.sleep(0.1)
         if get_data() == 'leader':
             verifyLeader()
-    return message
 
 async def messageReciever(message):
     while True:
