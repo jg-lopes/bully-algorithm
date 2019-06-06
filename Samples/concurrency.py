@@ -2,15 +2,20 @@ import asyncio
 import time
 import sys, select
 
+def verifyLeader():
+    print ('Consegui Rodar essa funcao')
+
 def get_data():
     if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
-        return int(sys.stdin.readline())
+        name = sys.stdin.readline()
+        name = name.strip()
+        return name
 
 async def userInterface(message):
     while True:
         await asyncio.sleep(0.1)
-        if get_data() == 1:
-            print("O Astolfo mandou oi")
+        if get_data() == 'leader':
+            verifyLeader()
     return message
 
 async def messageReciever(message):
