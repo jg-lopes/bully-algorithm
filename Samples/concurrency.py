@@ -21,9 +21,8 @@ def generateMetrics():
 
 def get_data():
     if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
-        name = sys.stdin.readline()
-        name = name.strip()
-        return name
+        return sys.stdin.readline().strip()
+    
 
 async def userInterface(message):
     while True:
