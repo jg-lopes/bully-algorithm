@@ -1,27 +1,53 @@
 import asyncio
 import time
+import sys, select
 
+def get_data():
+    if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
+        return int(sys.stdin.readline())
 
 async def userInterface(message):
-    await asyncio.sleep(1)
-    print(message)
+    while True:
+        await asyncio.sleep(0.1)
+        if get_data() == 1:
+            print("O Astolfo mandou oi")
+    return message
 
 async def messageReciever(message):
-    await asyncio.sleep(5)
-    print(message)
+    while True:
+        await asyncio.sleep(3)
+        print(message)
+    return message
 
 async def detectLeader(message):
-    await asyncio.sleep(10)
-    print(message)
+    while True:
+        await asyncio.sleep(3)
+        print(message)
+    return message
 
 async def main():
     print(f"started at {time.strftime('%X')}")
 
-    await asyncio.gather( 
-        userInterface("Hello from thread 1"),
-        messageReciever("Hello from thread 2"),
-        detectLeader("Hello from thread 3"),
+    # #ui = userInterface("Hello from thread 1")
+    # mr = messageReciever("Hello from thread 2")
+    # dl = detectLeader("Hello from thread 3")
+    # #await ui
+    # await mr
+    # await dl
+
+
+    # await asyncio.wait([
+    #     messageReciever("Hello from thread 2"),
+    #     detectLeader("Hello from thread 3")]
+    # )
+
+    await asyncio.gather(
+        userInterface("A"),
+        messageReciever("a"),
+        detectLeader("b")
     )
+
+   
 
     print(f"finished at {time.strftime('%X')}")
 
