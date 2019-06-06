@@ -2,6 +2,22 @@ import asyncio
 import time
 import sys, select
 
+def verifyLeader():
+    # Returns if the leader is alive
+    return None
+
+def emulateFailure():
+    # Emulates a failure in the process
+    return None
+
+def recoverProcess():
+    # Makes the process recover from the failure
+    return None
+
+def generateMetrics():
+    # Prints to the console some useful information
+    return None
+
 def get_data():
     if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
         return int(sys.stdin.readline())
@@ -9,6 +25,7 @@ def get_data():
 async def userInterface(message):
     while True:
         await asyncio.sleep(0.1)
+        
         if get_data() == 1:
             print("O Astolfo mandou oi")
     return message
