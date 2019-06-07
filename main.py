@@ -3,7 +3,7 @@ import time
 import sys, select
 import os
 
-connect_port = input("Insira o PID do processo servidor: ")
+
 
 ################ USER INPUT HANDLERS ################
 
@@ -85,15 +85,23 @@ async def detectLeaderThread():
 
 async def main():
 
-    # Starts a server (in order to receive TCP messages) on the port of the PID (always unique)
-    server = await asyncio.start_server(serverFunc, '127.0.0.1', os.getpid())
+    # We use the process' PID as a unique identifier in multiple occastions on the program.
+    # This means that all of the identifier, port, and value of election is equal to the ID.
+
+    uniqueID = os.getpid()
+
+    program_list = []
+    connect_port = input("Insira o PID de um processo existente para se conectar: ")
+    program_list.append(int(connect_port))
     
-    addr = server.sockets[0].getsockname()
-    print(f'Serving on {addr}')
+    # Starts a server (in order to receive TCP messages) on the port of the PID (always unique)
+    server = await asyncio.start_server(serverFunc, '127.0.0.1', uniqueID)
+    
+    print(f'Serving on {uniqueID}')
     
     await asyncio.gather(
         userInterfaceThread(),
-        sendMessage("Message", connect_port),
+        #sendMessage("Message", connect_port),
         messageHandlerThread(server),
         detectLeaderThread()
     )
