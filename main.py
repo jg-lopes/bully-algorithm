@@ -39,7 +39,10 @@ async def userInterfaceThread():
 async def connectReturn(writer):
     global program_list
     
-    message = str(program_list)
+    message = ""
+    for element in program_list:
+        message = message + str(element) + "|"
+    message = message[:-1]
 
     writer.write(message.encode())
     await writer.drain()
@@ -67,24 +70,23 @@ async def sendMessage(message, port):
     print('Close the connection')
     writer.close()
 
+    return data.decode()
 
 ## Receiving
 
 async def serverFunc(reader, writer):
     data = await reader.read(100)
     message = data.decode()
-    addr = writer.get_extra_info('peername')
 
-    print(f"Received {message!r} from {addr!r}")
+    print(f"Received {message!r}")
 
     # Splits the string into ints
     messageElements = [int(n) for n in message.split("|")]
     
     if (messageElements[0] == 6):
         message = await connectReturn(writer)
-        #print(f"Send: {message!r}")
+        program_list.append(messageElements[1])
     else:
-        #print(f"Send: {message!r}")
         writer.write(data)
         await writer.drain()
 
@@ -101,7 +103,7 @@ async def messageHandlerThread(server):
 async def detectLeaderThread():
     while True:
         await asyncio.sleep(3)
-        print("Detect Leader")
+        #print("Detect Leader")
 
 
 
@@ -121,6 +123,7 @@ async def main():
     # This means that all of the identifier, port, and value of election is equal to the ID.
 
     uniqueID = os.getpid()
+    program_list.append(uniqueID)
     isConnected = False
     
 
@@ -128,7 +131,9 @@ async def main():
         connect_port = int(input("Insira o ID de um processo existente para se conectar (-1 para se conectar a ninguém): "))
         try:
             if (connect_port != -1):
-                await sendMessage(f"6|{uniqueID}|{uniqueID}|000", connect_port)
+                message = await sendMessage(f"6|{uniqueID}", connect_port)
+                messageList = [int(n) for n in message.split("|")]
+                program_list.extend(messageList)
                 isConnected = True
             else:
                 isConnected = True
