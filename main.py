@@ -70,6 +70,7 @@ async def connectNetwork():
             if (connect_port != -1):
                 message = await sendMessage(f"6|{uniqueID}", connect_port)
                 messageList = [int(n) for n in message.split("|")]
+                print(messageList)
                 programIDList.extend(messageList)
                 isConnected = True
             else:
@@ -77,9 +78,6 @@ async def connectNetwork():
         except ConnectionError:
             print("Erro de conexão, tente novamente")
     
-    if (connect_port != -1):
-        programIDList.append(connect_port)
-
 
 # Functions to handle the listening of messages
 
@@ -92,7 +90,7 @@ async def serverFunc(reader, writer):
     messageElements = [int(n) for n in message.split("|")]
     
     if (messageElements[0] == 6):
-        message = await CONNECT_return(writer)
+        await CONNECT_return(writer)
         programIDList.append(messageElements[1])
     else:
         writer.write(data)
@@ -121,6 +119,7 @@ async def sendMessage(message, port):
     writer.close()
 
     return data.decode()
+
 
 
 
@@ -155,6 +154,10 @@ async def CONNECT_return(writer):
     
     return message
 
+
+
+
+
 ################ RESPONSIBLE FOR RECEIVING MESSAGES ################
 
 async def detectLeaderThread():
@@ -179,6 +182,7 @@ async def main():
     ########## 5. VIVO_OK
     ########## 6. CONNECT (requisição para entrar na rede)
 
+    # Insere seu próprio ID na lista de programas
     programIDList.append(uniqueID)
    
     # Uses the user input in order to locate a existing process in the network in order to connect to the whole network
