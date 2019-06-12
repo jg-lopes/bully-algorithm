@@ -3,10 +3,31 @@ import time
 import sys, select
 import os
 
+programIDList = []
 
-program_list = []
 
-################ USER INPUT HANDLERS ################
+
+
+
+################ READ USER INPUT ################
+
+def get_data():
+    # Reads user input from stdin
+    if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
+        return sys.stdin.readline().strip()
+
+async def userInterfaceThread():
+    # Responsible for calling for reading the user input and directing it to the current function
+    while True:
+        await asyncio.sleep(0.1)
+        if get_data() == 'leader':
+            verifyLeader()
+
+
+
+
+
+################ USER INPUT FUNCTION ################
 
 def verifyLeader():
     # Returns if the leader is alive
@@ -25,39 +46,39 @@ def generateMetrics():
     # Prints to the console some useful information
     return None
 
-def get_data():
-    if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
-        return sys.stdin.readline().strip()
-    
-
-async def userInterfaceThread():
-    while True:
-        await asyncio.sleep(0.1)
-        if get_data() == 'leader':
-            verifyLeader()
-
-async def connectReturn(writer):
-    global program_list
-    
-    message = ""
-    for element in program_list:
-        message = message + str(element) + "|"
-    message = message[:-1]
-
-    writer.write(message.encode())
-    await writer.drain()
-    
-    return message
-
 
 
 
 
 ################ CONNECTION HANDLERS ################
 
-## Sending
+# Functions to handle the listening of messages
+
+async def serverFunc(reader, writer):
+    # Creates a function in order to handle to handle messages from ther processes
+    data = await reader.read(100)
+    message = data.decode()
+
+    # Splits the string into ints
+    messageElements = [int(n) for n in message.split("|")]
+    
+    if (messageElements[0] == 6):
+        message = await CONNECT_return(writer)
+        programIDList.append(messageElements[1])
+    else:
+        writer.write(data)
+        await writer.drain()
+
+    writer.close()
+
+async def messageHandlerThread(server):
+    # Instructs the execution of the server 
+    return await server.serve_forever()
+
+# Sending messages
 
 async def sendMessage(message, port):
+    # Handles sending a message to another process (defined by it's uniqueID, which is equal to the port it resides)
     reader, writer = await asyncio.open_connection(
         '127.0.0.1', port)
 
@@ -72,43 +93,56 @@ async def sendMessage(message, port):
 
     return data.decode()
 
-## Receiving
 
-async def serverFunc(reader, writer):
-    data = await reader.read(100)
-    message = data.decode()
 
-    print(f"Received {message!r}")
 
-    # Splits the string into ints
-    messageElements = [int(n) for n in message.split("|")]
+################ MESSAGE RESPONSE ACTIONS ##################
+
+async def ELEICAOreturn():
+    return
+
+async def OK_Return():
+    return
+
+async def LIDER_Return():
+    return
+
+async def VIVO_return():
+    return
+
+async def VIVO_OK_return():
+    return
+
+async def CONNECT_return(writer):
+    global programIDList
     
-    if (messageElements[0] == 6):
-        message = await connectReturn(writer)
-        program_list.append(messageElements[1])
-    else:
-        writer.write(data)
-        await writer.drain()
+    message = ""
+    for element in programIDList:
+        message = message + str(element) + "|"
+    message = message[:-1]
 
-    print("Close the connection")
-    writer.close()
-
-async def messageHandlerThread(server):
-    return await server.serve_forever()
-
+    writer.write(message.encode())
+    await writer.drain()
+    
+    return message
 
 ################ RESPONSIBLE FOR RECEIVING MESSAGES ################
 
-
 async def detectLeaderThread():
+
+    print(programIDList)
     while True:
         await asyncio.sleep(3)
         #print("Detect Leader")
 
 
 
+
+
+################ MAIN FUNCTION ################
+
 async def main():
-    global program_list
+    global programIDList
 
     ################# MESSAGE TABLE
     ########## 1. ELEIÇÃO
@@ -123,7 +157,7 @@ async def main():
     # This means that all of the identifier, port, and value of election is equal to the ID.
 
     uniqueID = os.getpid()
-    program_list.append(uniqueID)
+    programIDList.append(uniqueID)
     isConnected = False
     
 
@@ -133,7 +167,7 @@ async def main():
             if (connect_port != -1):
                 message = await sendMessage(f"6|{uniqueID}", connect_port)
                 messageList = [int(n) for n in message.split("|")]
-                program_list.extend(messageList)
+                programIDList.extend(messageList)
                 isConnected = True
             else:
                 isConnected = True
@@ -141,7 +175,7 @@ async def main():
             print("Erro de conexão, tente novamente")
     
     if (connect_port != -1):
-        program_list.append(connect_port)
+        programIDList.append(connect_port)
 
     # Starts a server (in order to receive TCP messages) on the port of the PID (always unique)
     server = await asyncio.start_server(serverFunc, '127.0.0.1', uniqueID)
