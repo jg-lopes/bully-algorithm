@@ -289,10 +289,10 @@ async def main():
     ########## 4. VIVO
     ########## 5. VIVO_OK
     ########## 6. CONNECTION_REQUEST (request for program list, in order to discover the network)
-    ########## 7. PROGRAM_LIST (retorna as informações sobre toda a rede id do lider + todos os nós (incluido lider))
+    ########## 7. PROGRAM_LIST (returns informations necessary for connection, current leader followed by all processes (incluind leader))
     ########## 8. CONNECT (enters the network, comunicating to all processes' it's ID)
 
-    # Insere seu próprio ID na lista de programas
+    # Inserts the current program unique ID in the program ID list
     programIDList.append(uniqueID)
    
     # Uses the user input in order to locate a existing process in the network in order to connect to the whole network
