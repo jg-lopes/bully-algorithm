@@ -5,6 +5,13 @@ import os
 
 programIDList = []
 
+# Bool in order to check if connected to the network
+isConnected = False
+
+# We use the process' PID as a unique identifier in multiple occastions on the program.
+# This means that all of the identifier, port, and value of election is equal to the ID.
+uniqueID = os.getpid()
+
 
 
 
@@ -52,6 +59,28 @@ def generateMetrics():
 
 ################ CONNECTION HANDLERS ################
 
+# Connects the process to the network
+
+async def connectNetwork():
+    global isConnected, programIDList
+
+    while (isConnected == False):
+        connect_port = int(input("Insira o ID de um processo existente para se conectar (-1 para se conectar a ninguém): "))
+        try:
+            if (connect_port != -1):
+                message = await sendMessage(f"6|{uniqueID}", connect_port)
+                messageList = [int(n) for n in message.split("|")]
+                programIDList.extend(messageList)
+                isConnected = True
+            else:
+                isConnected = True
+        except ConnectionError:
+            print("Erro de conexão, tente novamente")
+    
+    if (connect_port != -1):
+        programIDList.append(connect_port)
+
+
 # Functions to handle the listening of messages
 
 async def serverFunc(reader, writer):
@@ -98,13 +127,13 @@ async def sendMessage(message, port):
 
 ################ MESSAGE RESPONSE ACTIONS ##################
 
-async def ELEICAOreturn():
+async def ELEICAO_return():
     return
 
-async def OK_Return():
+async def OK_return():
     return
 
-async def LIDER_Return():
+async def LIDER_return():
     return
 
 async def VIVO_return():
@@ -129,8 +158,6 @@ async def CONNECT_return(writer):
 ################ RESPONSIBLE FOR RECEIVING MESSAGES ################
 
 async def detectLeaderThread():
-
-    print(programIDList)
     while True:
         await asyncio.sleep(3)
         #print("Detect Leader")
@@ -142,7 +169,7 @@ async def detectLeaderThread():
 ################ MAIN FUNCTION ################
 
 async def main():
-    global programIDList
+    global programIDList, uniqueID
 
     ################# MESSAGE TABLE
     ########## 1. ELEIÇÃO
@@ -152,39 +179,18 @@ async def main():
     ########## 5. VIVO_OK
     ########## 6. CONNECT (requisição para entrar na rede)
 
-
-    # We use the process' PID as a unique identifier in multiple occastions on the program.
-    # This means that all of the identifier, port, and value of election is equal to the ID.
-
-    uniqueID = os.getpid()
     programIDList.append(uniqueID)
-    isConnected = False
-    
-
-    while (isConnected == False):
-        connect_port = int(input("Insira o ID de um processo existente para se conectar (-1 para se conectar a ninguém): "))
-        try:
-            if (connect_port != -1):
-                message = await sendMessage(f"6|{uniqueID}", connect_port)
-                messageList = [int(n) for n in message.split("|")]
-                programIDList.extend(messageList)
-                isConnected = True
-            else:
-                isConnected = True
-        except ConnectionError:
-            print("Erro de conexão, tente novamente")
-    
-    if (connect_port != -1):
-        programIDList.append(connect_port)
-
+   
+    # Uses the user input in order to locate a existing process in the network in order to connect to the whole network
+    await connectNetwork()
+ 
     # Starts a server (in order to receive TCP messages) on the port of the PID (always unique)
     server = await asyncio.start_server(serverFunc, '127.0.0.1', uniqueID)
-    
-    print(f'Seu ID é {uniqueID}')
+
+    print(f'Conectado na rede! Seu ID é {uniqueID}')
     
     await asyncio.gather(
         userInterfaceThread(),
-        #sendMessage("Message", connect_port),
         messageHandlerThread(server),
         detectLeaderThread()
     )
