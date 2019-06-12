@@ -45,7 +45,7 @@ async def userInterfaceThread():
         if userInput == 'fail':
             emulateFailure()
         if userInput == 'recover':
-            recoverProcess()
+            await recoverProcess()
 
 
 
@@ -55,7 +55,7 @@ async def userInterfaceThread():
 
 def verifyLeader():
     # Returns if the leader is alive
-    print ('Consegui rodar essa funcao')
+    print("ouvi leader")
     return None
 
 def emulateFailure():
@@ -67,11 +67,13 @@ def emulateFailure():
     print("O processo parou de funcionar")
     return None
 
-def recoverProcess():
+async def recoverProcess():
     global active
 
     # Makes the process recover from the failure
     active = True
+    print("Iniciada uma eleição devido à recuperação de um processo")
+    await election()
 
     print("O processo se recuperou da falha")
     return None
@@ -112,15 +114,14 @@ async def connectNetwork():
     # Communicates to all process that it is connecting to the network
     for program in programIDList:
         if program != uniqueID:
-            await exchangeMessages(f"7|{uniqueID}", program)
+            await exchangeMessages(f"8|{uniqueID}", program)
 
-    print(leaderID)
     
 
 # Functions to handle the listening of messages
 
 async def serverFunc(reader, writer):
-    global active, leaderID
+    global active, leaderID, programIDList
 
     # Creates a function in order to handle to handle messages from ther processes
     data = await reader.read(100)
@@ -131,6 +132,8 @@ async def serverFunc(reader, writer):
     
     # Only answers messages when active
     if (active):
+        
+        # Answering ELEICAO
         if (messageElements[0] == 1):
 
             electionCallerID = messageElements[1]
@@ -141,26 +144,44 @@ async def serverFunc(reader, writer):
                 writer.write(message.encode())
                 await writer.drain()
 
+                print(f"Començando eleição por receber um OK")
                 await election()
 
-            
-        elif (messageElements[0] == 2):
-            await OK_return(writer)
+        # Answering OK unecessary
 
+        # Answering LEADER
         elif (messageElements[0] == 3):
             leaderID = messageElements[1]
-            await LIDER_return(writer)
 
+        # Answering VIVO
         elif (messageElements[0] == 4):
-            await VIVO_return(writer)
+            # Returns a VIVO_OK
+            message = "5"
 
-        elif (messageElements[0] == 5):
-            await VIVO_OK_return(writer)
+            writer.write(message.encode())
+            await writer.drain()
 
+        # Answering VIVO_OK unecessary
+
+        # Answering CONNECT 
         elif (messageElements[0] == 6):
-            await CONNECT_return(writer)
+            global programIDList
+    
+            # Second element of the return message is the leader ID
+            message = "7|" + str(leaderID) + "|"
 
-        elif (messageElements[0] == 7):
+            # Other elements are all the existing IDs in the network (including the leader)
+            for element in programIDList:
+                message = message + str(element) + "|"
+            message = message[:-1]
+
+            writer.write(message.encode())
+            await writer.drain()
+
+        # Answering CONNECTION_REQUEST already handled by connectNetwork function
+
+        # Answering CONNECT
+        elif (messageElements[0] == 8):
             programIDList.append(messageElements[1])
 
         else:
@@ -181,13 +202,13 @@ async def exchangeMessages(message, port):
     reader, writer = await asyncio.open_connection(
         '127.0.0.1', port)
 
-    print(f'Send: {message!r}')
+    #print(f'Send: {message!r}')
     writer.write(message.encode())
 
     data = await reader.read(100)
-    print(f'Received: {data.decode()!r}')
+    #print(f'Received: {data.decode()!r}')
 
-    print('\n\n')
+    #print('\n\n')
     writer.close()
 
     return data.decode()
@@ -196,58 +217,26 @@ async def exchangeMessages(message, port):
 
 
 
-################ MESSAGE RESPONSE ACTIONS ##################
-
-async def ELEICAO_return(writer):
-    return
-
-async def OK_return(writer):
-    return
-
-async def LIDER_return(writer):
-    return
-
-async def VIVO_return(writer):
-
-    # Returns a VIVO_OK
-    message = "5"
-
-    writer.write(message.encode())
-    await writer.drain()
-
-async def CONNECT_return(writer):
-    global programIDList
-    
-    # First element of the return message is the leader ID
-    message = "7|" + str(leaderID) + "|"
-
-    # Other elements are all the existing IDs in the network (including the leader)
-    for element in programIDList:
-        message = message + str(element) + "|"
-    message = message[:-1]
-
-    writer.write(message.encode())
-    await writer.drain()
-
-
-
-
 ################ RESPONSIBLE FOR RECEIVING MESSAGES ################
 
 async def detectLeaderThread():
-    global leaderID
+    global leaderID, programIDList
+
+    
+
     while True:
         # Asks if leader is alive -> VIVO
 
         # Checks if the process already recognizes a leader
-        if (leaderID != -1):
-            await asyncio.sleep(5)
+        await asyncio.sleep(5)
+        
+        print(leaderID)
+        if (leaderID != -1) and active:
             result = await exchangeMessages("4", leaderID)
             
             if (result == ""):
+                print(f"Començando eleição por ver lider em falha")
                 await election()
-            elif (result == "5"):
-                print("O LÍDER ESTÁ VIVO")
 
 
 
@@ -256,13 +245,14 @@ async def detectLeaderThread():
 ################ ELECTION PROTOCOL ################
 
 async def election():
-    global programIDList, uniqueID
+    global programIDList, uniqueID, leaderID
 
     possibleLeader = True
 
     for program in programIDList:
         if program != uniqueID:  
             # Sends ELEICAO to all processes in the network
+            #print(f"Enviando ELEICAO para {program}")
             returnMessage = await exchangeMessages(f"1|{uniqueID}", program)
 
             # If receives an OK, knows there is a bigger ID than itself, and thus cannot become the leader
@@ -275,6 +265,9 @@ async def election():
         for program in programIDList:
             if program != uniqueID:
                 # Envia que é o líder a todos os processos
+
+                #print(f"Enviando LIDER para {program}")
+                leaderID = uniqueID
                 await exchangeMessages(f"3|{uniqueID}", program)
                 
 
@@ -295,8 +288,9 @@ async def main():
     ########## 3. LIDER
     ########## 4. VIVO
     ########## 5. VIVO_OK
-    ########## 6. CONNECT (requisição para entrar na rede)
-    ########## 7. CONNECT_RETURN (retorna as informações sobre toda a rede id do lider + todos os nós (incluido lider))
+    ########## 6. CONNECTION_REQUEST (request for program list, in order to discover the network)
+    ########## 7. PROGRAM_LIST (retorna as informações sobre toda a rede id do lider + todos os nós (incluido lider))
+    ########## 8. CONNECT (enters the network, comunicating to all processes' it's ID)
 
     # Insere seu próprio ID na lista de programas
     programIDList.append(uniqueID)
