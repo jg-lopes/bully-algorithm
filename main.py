@@ -108,6 +108,12 @@ async def connectNetwork():
         except ConnectionError:
             print("Erro de conexão, tente novamente")
 
+
+    # Communicates to all process that it is connecting to the network
+    for program in programIDList:
+        if program != uniqueID:
+            await exchangeMessages(f"7|{uniqueID}", program)
+
     print(leaderID)
     
 
@@ -153,6 +159,8 @@ async def serverFunc(reader, writer):
 
         elif (messageElements[0] == 6):
             await CONNECT_return(writer)
+
+        elif (messageElements[0] == 7):
             programIDList.append(messageElements[1])
 
         else:
@@ -179,7 +187,7 @@ async def exchangeMessages(message, port):
     data = await reader.read(100)
     print(f'Received: {data.decode()!r}')
 
-    print('Close the connection')
+    print('\n\n')
     writer.close()
 
     return data.decode()
@@ -248,27 +256,27 @@ async def detectLeaderThread():
 ################ ELECTION PROTOCOL ################
 
 async def election():
-    global programIDList
+    global programIDList, uniqueID
 
     possibleLeader = True
 
     for program in programIDList:
-        if program != uniqueID:
-
-            print(f"GUSTAVO MACHADO {program}")    
+        if program != uniqueID:  
             # Sends ELEICAO to all processes in the network
             returnMessage = await exchangeMessages(f"1|{uniqueID}", program)
 
             # If receives an OK, knows there is a bigger ID than itself, and thus cannot become the leader
             if returnMessage == "2":
-                possibleLeader = False
+                possibleLeader = False            
     
     # Has sent to all processes and found no process with a bigger ID
     if possibleLeader == True:
+        leaderID = uniqueID
         for program in programIDList:
             if program != uniqueID:
                 # Envia que é o líder a todos os processos
                 await exchangeMessages(f"3|{uniqueID}", program)
+                
 
 
         
