@@ -23,6 +23,9 @@ uniqueID = os.getpid()
 leaderID = -1
 
 
+sentMessages = [0,0,0,0,0,0,0,0,0]
+receivedMessages = [0,0,0,0,0,0,0,0,0]
+
 
 
 
@@ -41,11 +44,13 @@ async def userInterfaceThread():
         userInput = get_data()
 
         if userInput == 'leader':
-            verifyLeader()
+            await verifyLeader()
         if userInput == 'fail':
             emulateFailure()
         if userInput == 'recover':
             await recoverProcess()
+        if userInput == 'metrics':
+            generateMetrics()
 
 
 
@@ -53,9 +58,16 @@ async def userInterfaceThread():
 
 ################ USER INPUT FUNCTION ################
 
-def verifyLeader():
+async def verifyLeader():
     # Returns if the leader is alive
-    print("ouvi leader")
+    if (leaderID != -1) and active:
+        result = await exchangeMessages("4", leaderID)
+            
+        if (result == ""):
+            print(f"Començando eleição por ver lider em falha")
+            await election()
+        else:
+            print(f"O líder de ID {leaderID} está vivo!")
     return None
 
 def emulateFailure():
@@ -80,6 +92,8 @@ async def recoverProcess():
 
 def generateMetrics():
     # Prints to the console some useful information
+    print(f"Mensagens enviadas ordenadas por tipo = {sentMessages[1:]}")
+    print(f"Mensagens recebidas ordenadas por tipo = {receivedMessages[1:]}")
     return None
 
 
@@ -91,16 +105,19 @@ def generateMetrics():
 # Connects the process to the network
 
 async def connectNetwork():
-    global isConnected, programIDList, leaderID
+    global isConnected, programIDList, leaderID, sentMessages, receivedMessages
 
     while (isConnected == False):
         connect_port = int(input("Insira o ID de um processo existente para se conectar (-1 para se conectar a ninguém): "))
         try:
             if (connect_port != -1):
                 returnedMessage = await exchangeMessages(f"6|{uniqueID}", connect_port)
+                sentMessages[6] += 1
                 
                 # Recebe uma mensagem do tipo 7|LIDERID|PROCESSO1|PROCESSO2|PROCESSO3....
                 messageElements = [int(n) for n in returnedMessage.split("|")]
+                receivedMessages[7] += 1
+
                 leaderID = messageElements[1]
                 programIDList.extend(messageElements[2:])
                 isConnected = True
@@ -115,13 +132,14 @@ async def connectNetwork():
     for program in programIDList:
         if program != uniqueID:
             await exchangeMessages(f"8|{uniqueID}", program)
+            sentMessages[8] += 1
 
     
 
 # Functions to handle the listening of messages
 
 async def serverFunc(reader, writer):
-    global active, leaderID, programIDList
+    global active, leaderID, programIDList, sentMessages, receivedMessages
 
     # Creates a function in order to handle to handle messages from ther processes
     data = await reader.read(100)
@@ -135,6 +153,7 @@ async def serverFunc(reader, writer):
         
         # Answering ELEICAO
         if (messageElements[0] == 1):
+            receivedMessages[1] += 1
 
             electionCallerID = messageElements[1]
             
@@ -143,29 +162,39 @@ async def serverFunc(reader, writer):
 
                 writer.write(message.encode())
                 await writer.drain()
+                sentMessages[2] += 1
 
                 print(f"Començando eleição por receber um OK")
                 await election()
 
         # Answering OK unecessary
+        elif (messageElements[0] == 2):
+            receivedMessages[2] += 1
 
         # Answering LEADER
         elif (messageElements[0] == 3):
+            receivedMessages[3] += 1
             leaderID = messageElements[1]
 
         # Answering VIVO
         elif (messageElements[0] == 4):
+            receivedMessages[4] += 1
+
             # Returns a VIVO_OK
             message = "5"
 
             writer.write(message.encode())
             await writer.drain()
+            sentMessages[5] += 1
 
         # Answering VIVO_OK unecessary
+        elif (messageElements == 5):
+            receivedMessages[5] += 1
 
         # Answering CONNECT 
         elif (messageElements[0] == 6):
             global programIDList
+            receivedMessages[6] += 1
     
             # Second element of the return message is the leader ID
             message = "7|" + str(leaderID) + "|"
@@ -177,11 +206,15 @@ async def serverFunc(reader, writer):
 
             writer.write(message.encode())
             await writer.drain()
+            sentMessages[7] += 1
 
         # Answering CONNECTION_REQUEST already handled by connectNetwork function
+        elif (messageElements[0] == 7):
+            receivedMessages[7] += 1
 
         # Answering CONNECT
         elif (messageElements[0] == 8):
+            receivedMessages[8] += 1
             programIDList.append(messageElements[1])
 
         else:
@@ -220,7 +253,7 @@ async def exchangeMessages(message, port):
 ################ RESPONSIBLE FOR RECEIVING MESSAGES ################
 
 async def detectLeaderThread():
-    global leaderID, programIDList
+    global leaderID, programIDList, sentMessages, receivedMessages
 
     
 
@@ -233,10 +266,14 @@ async def detectLeaderThread():
         print(leaderID)
         if (leaderID != -1) and active:
             result = await exchangeMessages("4", leaderID)
+            sentMessages[4] += 1
             
             if (result == ""):
                 print(f"Començando eleição por ver lider em falha")
                 await election()
+            elif (result == "5"):
+                # Received a VIVO_OK
+                receivedMessages[4] += 1
 
 
 
@@ -245,7 +282,7 @@ async def detectLeaderThread():
 ################ ELECTION PROTOCOL ################
 
 async def election():
-    global programIDList, uniqueID, leaderID
+    global programIDList, uniqueID, leaderID, sentMessages, receivedMessages
 
     possibleLeader = True
 
@@ -254,9 +291,11 @@ async def election():
             # Sends ELEICAO to all processes in the network
             #print(f"Enviando ELEICAO para {program}")
             returnMessage = await exchangeMessages(f"1|{uniqueID}", program)
+            sentMessages[1] += 1
 
             # If receives an OK, knows there is a bigger ID than itself, and thus cannot become the leader
             if returnMessage == "2":
+                receivedMessages[2] += 1
                 possibleLeader = False            
     
     # Has sent to all processes and found no process with a bigger ID
@@ -269,6 +308,7 @@ async def election():
                 #print(f"Enviando LIDER para {program}")
                 leaderID = uniqueID
                 await exchangeMessages(f"3|{uniqueID}", program)
+                sentMessages[3] += 1
                 
 
 
