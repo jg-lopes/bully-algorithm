@@ -258,8 +258,9 @@ async def detectLeaderThread():
         # Asks if leader is alive -> VIVO
 
         # Checks if the process already recognizes a leader
-        await asyncio.sleep(5)
+        await asyncio.sleep(30)
         
+        print(f"Verificando se o líder está vivo")
         if (leaderID != -1) and active:
             result = await exchangeMessages("4", leaderID)
             sentMessages[4] += 1
@@ -268,7 +269,8 @@ async def detectLeaderThread():
                 print(f"Començando eleição por ver lider em falha")
                 await election()
             elif (result == "5"):
-                # Received a VIVO_OK
+                # Received a VIVO_OKif (result == ""):
+                print(f"O líder de ID {leaderID} está vivo!")
                 receivedMessages[4] += 1
 
 
@@ -296,6 +298,8 @@ async def election():
     # Has sent to all processes and found no process with a bigger ID
     if possibleLeader == True:
         leaderID = uniqueID
+        print("Eu sou o novo líder!")
+        print("Comunicando todos os outros processos que sou o novo líder")
         for program in programIDList:
             if program != uniqueID:
                 # Envia que é o líder a todos os processos
