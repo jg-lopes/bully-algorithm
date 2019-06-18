@@ -235,13 +235,10 @@ async def exchangeMessages(message, port):
     reader, writer = await asyncio.open_connection(
         '127.0.0.1', port)
 
-    #print(f'Send: {message!r}')
     writer.write(message.encode())
 
     data = await reader.read(100)
-    #print(f'Received: {data.decode()!r}')
 
-    #print('\n\n')
     writer.close()
 
     return data.decode()
@@ -263,7 +260,6 @@ async def detectLeaderThread():
         # Checks if the process already recognizes a leader
         await asyncio.sleep(5)
         
-        print(leaderID)
         if (leaderID != -1) and active:
             result = await exchangeMessages("4", leaderID)
             sentMessages[4] += 1
@@ -289,7 +285,6 @@ async def election():
     for program in programIDList:
         if program != uniqueID:  
             # Sends ELEICAO to all processes in the network
-            #print(f"Enviando ELEICAO para {program}")
             returnMessage = await exchangeMessages(f"1|{uniqueID}", program)
             sentMessages[1] += 1
 
@@ -304,8 +299,6 @@ async def election():
         for program in programIDList:
             if program != uniqueID:
                 # Envia que é o líder a todos os processos
-
-                #print(f"Enviando LIDER para {program}")
                 leaderID = uniqueID
                 await exchangeMessages(f"3|{uniqueID}", program)
                 sentMessages[3] += 1
